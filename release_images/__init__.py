@@ -1,0 +1,2 @@
+"""Release image workflow package."""
+

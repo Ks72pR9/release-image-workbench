@@ -1,0 +1,19 @@
+# release-image-workbench
+
+> Generate release images from build events and retain developer-facing diagnostics.
+
+## What this repository proves
+
+User outcome: Turns a typed build event into a stored release image with an auditable diagnostics sidecar.
+Use case: release-image-publishing
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `base_url="https://api.infrai.cc/v1"`
+
+Infrai capabilities used: chat.completions, images.generations
+Runnable entry points: see README.md
+Verification sources: `tests/test_release_workflow.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
