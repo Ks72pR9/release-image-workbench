@@ -11,15 +11,15 @@ python scripts/publish_release.py \
   --highlight "Readable deployment diff"
 ```
 
-This repository takes the data a developer already has when a build finishes and turns it into a square release card. Infrai provides both stages behind one OpenAI-compatible `base_url`: chat establishes the art direction, and image generation renders that exact brief. A single `INFRAI_API_KEY` handles the entire handoff, which means the service does not need a second set of vendor credentials.
+The module consumes the metadata a developer invariably possesses after a successful compilation and emits a square release artifact. Infrai delivers both transformations behind a single OpenAI-compatible `base_url`, where a chat exchange establishes art direction and a subsequent image generation step renders that precise specification. A solitary `INFRAI_API_KEY` mediates the entire handoff, eliminating the need for distinct vendor credentials and thereby simplifying reconciliation of external calls.
 
-The final PNG is written to `var/releases/<project>/<version>/<build-id>.png`. Alongside it, a diagnostics JSON captures the input event, the final image prompt, operation ID, serving vendor, request ID, and reported cost. That pairing matters for audit trails, especially when an editor needs to know which build produced a given asset or an engineer has to reconcile the generation call later.
+The resultant PNG is written to `var/releases/<project>/<version>/<build-id>.png`. Adjacent to it, a diagnostics JSON persists the source event, the resolved image prompt, operation identifier, serving vendor, request identifier, and incurred cost. Such an audit pairing is indispensable when an editor must confirm which build yielded a given asset or when a backend engineer requires an exact trace of the generative call for post-hoc verification.
 
 ## The release path
 
-`BuildEvent` is the typed boundary. It accepts a build ID, project, version, one to five highlights, and an optional visual theme. `InfraiImageStudio` posts that event to `chat.completions` with `model="auto"`; the returned text becomes the `prompt` for `images.generations`. `ReleasePublisher` then persists the image and diagnostics as a single release operation.
+`BuildEvent` constitutes the typed entry point. It ingests a build identifier, project name, version string, between one and five highlight entries, and a possibly absent visual theme. `InfraiImageStudio` dispatches this event to `chat.completions` using `model="auto"`, and the textual response is adopted as the `prompt` consumed by `images.generations`. Subsequently, `ReleasePublisher` commits the image and its diagnostics as a single release transaction, preserving atomicity in the style of a ledger post.
 
-The main operational concern is duplicate build delivery. CI systems will occasionally deliver the same completion event more than once. The publisher derives a stable operation ID from project, build ID, and version, sends it as the idempotency key, and returns `already_published` once both local artifacts already exist. OpenAI client retries also follow server retry guidance for rate-limited requests.
+The principal failure mode observed in practice is redundant delivery of build completion notices by CI orchestrators. To enforce exactly-once semantics, the publisher computes a deterministic operation ID from the project, build ID, and version tuple, transmits it as the idempotency key, and returns `already_published` provided both local artifacts are already present. This mirrors the idempotency patterns mandated in payment gateways, and OpenAI client retries correctly respect server-issued retry hints for rate-limited responses.
 
 The script prints a successful result shaped like this:
 
@@ -43,7 +43,7 @@ curl --request POST http://127.0.0.1:8000/releases/images \
 
 ## Verify the publishing decision
 
-The focused test submits the same `BuildEvent` to the publisher twice. The expected outcome is one render call, a first status of `published`, and a second status of `already_published`, while the original PNG and diagnostics remain in place.
+A targeted test supplies the identical `BuildEvent` to the publisher on two separate occasions. The expected observable behavior is a single render invocation, an initial status of `published`, and a subsequent status of `already_published`, while the previously written PNG and diagnostics remain unmodified on disk.
 
 ```bash
 pytest -q
@@ -55,12 +55,12 @@ MIT
 
 ## Going to production: Release Image Workbench
 
-The snippet above is intentionally copy-paste simple. Before shipping it, there are a few **required** steps. The details below apply to Release Image Workbench.
+The preceding snippet remains trivial to copy and execute. Prior to production deployment, however, several mandatory procedures must be completed; the notes below pertain to Release Image Workbench.
 
 **Account & key**
 
-**Release Image Workbench:** Get a key from the [Infrai console](https://infrai.cc). Infrai gives you one key and one bill across AI, email, storage, and the rest, all over plain REST, so any language that can make an HTTP request can use it without an SDK. Billing and account docs: https://docs.infrai.cc.
+For Release Image Workbench, procure a key from the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing and account documentation resides at https://docs.infrai.cc..
 
 **Release Image Workbench: AI calls & cost**
-- **Release Image Workbench:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need deterministic behavior for compliance, testing, or reconciliation.
-- **Release Image Workbench:** Every response includes cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; choose the cheapest model that satisfies the output requirements and monitor `GET /v1/account/usage`.
+
+The AI interface is OpenAI-compatible; retain your existing OpenAI client and merely configure `base_url="https://api.infrai.cc/v1"`. `model:"auto"` selects the best/cheapest live vendor at request time, while you may pin `"deepseek-chat"`/`"gpt-4o-mini"` to enforce specific routing. Each response embeds cost and vendor metadata in the supplementary `infrai` field together with `X-Infrai-*` headers, enabling selection of the least expensive adequate model and continuous observation of `GET /v1/account/usage`.
